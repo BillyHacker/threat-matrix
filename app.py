@@ -46,6 +46,9 @@ CATS = {
 }
 app = Flask(__name__)
 STATE = {"services": [], "panic": {"panic": 0, "mood": "warming up", "posts": []}, "updated": None, "log": []}
+# Seed placeholders so the services list is never empty, even before the first sync finishes.
+STATE["services"] = [dict(name=n, lat=la, lon=lo, indicator="unknown", desc="not checked yet", bad=0, total=0)
+                     for n, (u, la, lo) in SERVICES.items()]
 
 
 def db():
@@ -385,6 +388,8 @@ def detail():
     P, label = RANGES[key]["hours"], RANGES[key]["label"]
 
     if kind == "services":
+        if all(s["desc"] == "not checked yet" for s in STATE["services"]):
+            STATE["services"] = fetch_services()   # first sync not finished yet: check live now
         rows = [dict(s, url=SERVICES[s["name"]][0]) for s in STATE["services"]]
         bad = [s for s in rows if s["indicator"] not in ("none", "unknown")]
         return jsonify(kind=kind, title="Service status", total=len(rows),
